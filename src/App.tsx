@@ -6,28 +6,55 @@ import AddShowForm from "./components/AddShowForm";
 import { watchlist as initialWatchList, type Show } from "./data/watchlist";
 
 type Filter = "tutti" | "serie" | "film";
+type ShowFormValues = Pick<Show, "title" | "year" | "kind">;
 
 function App() {
-  const [nextWatch, setNextWatch] = useState<Show>();
+  const [selectedShowId, setSelectedShowId] = useState<number | null>(null);
   const [activeFilter, setActiveFilter] = useState<Filter>("tutti");
   const [watchlist, setWatchlist] = useState(initialWatchList);
+  const [editingId, setEditingId] = useState<number>();
 
-  function handleShowClick(show: Show) {
-    if (nextWatch?.id === show.id) {
-      setNextWatch(undefined);
-    } else {
-      setNextWatch(show);
-    }
+  const editingShow = watchlist.find(show => show.id === editingId);
+
+  const selectedShow = watchlist.find(
+    show => show.id === selectedShowId
+  );
+
+  function handleShowClick(id: number) {
+    setSelectedShowId(prev => prev === id ? null : id);
   }
 
-  function handleAddShow(newShow: Omit<Show, "id">) {
+  function handleAddShow(newShow: ShowFormValues) {
     setWatchlist(prev => [
       ...prev,
       {
         ...newShow,
-        id: Math.max(0, ...prev.map(show => show.id)) + 1
+        id: Math.max(0, ...prev.map(show => show.id)) + 1,
+        watched: false,
+        rating: undefined,
       }
     ]);
+  }
+
+  function handleSaveShow(id: number, data: ShowFormValues) {
+    setWatchlist(prev =>
+      prev.map(show => (show.id === id ? { ...show, ...data } : show))
+    );
+    setEditingId(undefined);
+  }
+
+  function handleToggleWatched(id: number) {
+    setWatchlist(prev =>
+      prev.map(show =>
+        show.id === id ? { ...show, watched: !show.watched } : show
+      )
+    );
+  }
+
+  function handleRate(id: number, rating: number | undefined) {
+    setWatchlist(prev =>
+      prev.map(show => (show.id === id ? { ...show, rating } : show))
+    );
   }
 
   return (
@@ -58,10 +85,13 @@ function App() {
             )
             .map(show => (
               <ShowRow
-                onClick={() => handleShowClick(show)}
-                show={show}
-                isSelected={nextWatch?.id === show.id}
                 key={show.id}
+                show={show}
+                isSelected={selectedShowId === show.id}
+                onClick={() => handleShowClick(show.id)}
+                onToggleWatched={() => handleToggleWatched(show.id)}
+                onRate={(rating) => handleRate(show.id, rating)}
+                onEdit={() => setEditingId(show.id)}
               />
             ))}
         </div>
@@ -75,22 +105,32 @@ function App() {
           {watchlist.filter(show => show.kind === "serie").length} serie
         </p>
 
-        {nextWatch && (
+        {selectedShow && (
           <p className="font-bold">
             Stasera guardo:
             {" "}
             <span className="capitalize">
-              {nextWatch.title}
+              {selectedShow.title}
             </span>
           </p>
         )}
 
         <div className="flex flex-col gap-4">
           <h2 className="font-bold text-center text-xl">
-            Aggiungi Titolo
+            {editingShow ? "Modifica titolo" : "Aggiungi Titolo"}
           </h2>
 
-          <AddShowForm onSubmit={handleAddShow} />
+          <AddShowForm
+            key={editingId ?? "new"}
+            existingTitles={watchlist.map(show => ({
+              id: show.id,
+              title: show.title
+            }))}
+            editingShow={editingShow}
+            onAdd={handleAddShow}
+            onSave={handleSaveShow}
+            onCancelEdit={() => setEditingId(undefined)}
+          />
         </div>
 
       </div>

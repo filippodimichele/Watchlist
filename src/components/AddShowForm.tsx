@@ -1,147 +1,201 @@
-import { useState } from "react";
-import type { Show } from "../data/watchlist";
+
+import { useState, type FormEvent } from "react";
 import { Button } from "./Button";
-import { cn } from "../utils/cn";
+import { Input } from "./Input";
+import type { Show } from "../data/watchlist";
 
 const MIN_YEAR = 1900;
-const MAX_YEAR = 2026;
+
+type ShowFormValues = Pick<Show, "title" | "year" | "kind">;
+
+type FormValues = {
+    title: string;
+    year: string;
+    kind: Show["kind"];
+};
+
+type ExistingTitle = {
+    id: number;
+    title: string;
+};
+
+type FormErrors = {
+    title: string[];
+    year: string[];
+};
 
 type AddShowFormProps = {
-    onSubmit: (show: Omit<Show, "id">) => void;
+    existingTitles: ExistingTitle[];
+    editingShow?: Show;
+    onAdd: (data: ShowFormValues) => void;
+    onSave: (id: number, data: ShowFormValues) => void;
+    onCancelEdit: () => void;
 };
 
-const defaultState = {
-    values: {
-        title: "",
-        year: 0,
-        kind: "film" as Show["kind"],
-    },
-    errors: {
-        title: [] as string[],
-        year: [] as string[],
+function buildState(editingShow?: Show) {
+    return {
+        values: {
+            title: editingShow?.title ?? "",
+            year: editingShow?.year.toString() ?? "",
+            kind: editingShow?.kind ?? "film",
+        } as FormValues,
+        errors: { title: [], year: [] } as FormErrors,
+        submitted: false,
+    };
+}
+
+
+function getErrors(
+    values: FormValues,
+    existingTitles: ExistingTitle[],
+    excludeId?: number
+): FormErrors {
+    const errors: FormErrors = { title: [], year: [] };
+    const trimmedTitle = values.title.trim();
+
+    if (!trimmedTitle) {
+        errors.title.push("Titolo obbligatorio");
+    } else {
+        if (trimmedTitle.length < 2) {
+            errors.title.push("Il titolo deve avere almeno 2 caratteri");
+        }
+
+        const isDuplicate = existingTitles.some(
+            show =>
+                show.id !== excludeId &&
+                show.title.trim().toLowerCase() === trimmedTitle.toLowerCase()
+        );
+
+        if (isDuplicate) {
+            errors.title.push("Questo titolo è già in watchlist");
+        }
     }
-};
 
-const AddShowForm = ({ onSubmit }: AddShowFormProps) => {
-    const [formState, setFormState] = useState(defaultState);
+    const currentYear = new Date().getFullYear();
+    const year = Number(values.year);
 
-    function addShow(e: React.SubmitEvent<HTMLFormElement>) {
+    if (
+        !values.year ||
+        !Number.isInteger(year) ||
+        year < MIN_YEAR ||
+        year > currentYear
+    ) {
+        errors.year.push(
+            `L'anno deve essere compreso tra il ${MIN_YEAR} e il ${currentYear}`
+        );
+    }
+
+    return errors;
+}
+
+const AddShowForm = ({
+    existingTitles,
+    editingShow,
+    onAdd,
+    onSave,
+    onCancelEdit
+}: AddShowFormProps) => {
+    const [formState, setFormState] = useState(
+        () => buildState(editingShow)
+    );
+
+    // ina sola funzione aggiorna qualsiasi campo del form.
+    function updateValue<K extends keyof FormValues>(
+        key: K,
+        value: FormValues[K]
+    ) {
+        setFormState(prev => {
+            const values = { ...prev.values, [key]: value };
+
+            const errors = prev.submitted
+                ? getErrors(values, existingTitles, editingShow?.id)
+                : prev.errors;
+
+            return { ...prev, values, errors };
+        });
+    }
+
+    function handleSubmit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
 
-        let errors = { ...defaultState.errors };
+        const errors = getErrors(
+            formState.values,
+            existingTitles,
+            editingShow?.id
+        );
 
-        setFormState(prev => ({
-            ...prev,
-            errors: defaultState.errors
-        }));
-
-        if (!formState.values.title.trim()) {
-            errors = {
-                ...errors,
-                title: ["Titolo obbligatorio"]
-            };
-        }
-
-        if (
-            formState.values.year < MIN_YEAR ||
-            formState.values.year > MAX_YEAR
-        ) {
-            errors = {
-                ...errors,
-                year: [`L'anno deve essere compreso tra il ${MIN_YEAR} e il ${MAX_YEAR}`]
-            };
-        }
-
-        if (Object.values(errors).some(arr => arr.length)) {
+        if (Object.values(errors).some(arr => arr.length > 0)) {
             setFormState(prev => ({
                 ...prev,
-                errors
+                errors,
+                submitted: true
             }));
             return;
         }
 
-        const newShow = { ...formState.values };
+        const data: ShowFormValues = {
+            ...formState.values,
+            year: Number(formState.values.year),
+        };
 
-        setFormState(defaultState);
-        onSubmit(newShow);
+        if (editingShow) {
+            onSave(editingShow.id, data);
+        } else {
+            onAdd(data);
+            setFormState(buildState());
+        }
     }
 
     return (
-        <form onSubmit={addShow} className="flex flex-col gap-4">
-
-            <input
-                className={cn("bg-gray-200 p-2 rounded-lg border-2 border-transparent", {
-                    "border-red-500": formState.errors.title.length > 0,
-                })}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <Input
                 placeholder="Titolo"
                 value={formState.values.title}
-                onChange={(e) => {
-                    setFormState(prev => ({
-                        ...prev,
-                        values: {
-                            ...prev.values,
-                            title: e.target.value
-                        }
-                    }));
-                }}
+                errors={formState.errors.title}
+                onChange={e => updateValue("title", e.target.value)}
             />
 
-            {formState.errors.title.map((error, i) => (
-                <p key={i} className="text-red-500 text-xs">
-                    {error}
-                </p>
-            ))}
-
-            <input
-                className={cn("bg-gray-200 p-2 rounded-lg border-2 border-transparent", {
-                    "border-red-500": formState.errors.year.length > 0,
-                })}
+            <Input
                 placeholder="Anno"
                 type="number"
+                step={1}
                 value={formState.values.year}
-                onChange={(e) => {
-                    setFormState(prev => ({
-                        ...prev,
-                        values: {
-                            ...prev.values,
-                            year: +e.target.value
-                        }
-                    }));
-                }}
+                errors={formState.errors.year}
+                onChange={e => updateValue("year", e.target.value)}
             />
 
-            {formState.errors.year.map((error, i) => (
-                <p key={i} className="text-red-500 text-xs">
-                    {error}
-                </p>
-            ))}
-
-            
             <div className="flex gap-4">
                 {(["film", "serie"] as const).map(tipo => (
                     <Button
                         key={tipo}
                         type="button"
-                        variant={formState.values.kind === tipo ? "active" : "default"}
-                        onClick={() => {
-                            setFormState(prev => ({
-                                ...prev,
-                                values: {
-                                    ...prev.values,
-                                    kind: tipo
-                                }
-                            }));
-                        }}
+                        variant={
+                            formState.values.kind === tipo
+                                ? "active"
+                                : "default"
+                        }
+                        onClick={() => updateValue("kind", tipo)}
                     >
                         {tipo}
                     </Button>
                 ))}
             </div>
 
-            <Button type="submit" variant="primary">
-                Aggiungi
-            </Button>
+            <div className="flex gap-4">
+                <Button type="submit" variant="primary">
+                    {editingShow ? "Salva" : "Aggiungi"}
+                </Button>
 
+                {editingShow && (
+                    <Button
+                        type="button"
+                        variant="default"
+                        onClick={onCancelEdit}
+                    >
+                        Annulla
+                    </Button>
+                )}
+            </div>
         </form>
     );
 };
