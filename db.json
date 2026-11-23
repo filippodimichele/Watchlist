@@ -1,0 +1,61 @@
+{
+  "watchlist": [
+    {
+      "id": "2",
+      "title": "Stranger Things",
+      "year": 2016,
+      "kind": "serie",
+      "watched": true,
+      "rating": null
+    },
+    {
+      "id": "4",
+      "title": "Mare fuori",
+      "year": 2020,
+      "kind": "serie",
+      "watched": false,
+      "rating": null
+    },
+    {
+      "id": "5",
+      "title": "Oppenheimer",
+      "year": 2024,
+      "kind": "film",
+      "watched": false,
+      "rating": null
+    },
+    {
+      "id": "6",
+      "title": "La compagnia dell'anello",
+      "year": 2001,
+      "kind": "film",
+      "watched": false,
+      "rating": null
+    },
+    {
+      "title": "The Batman",
+      "year": 2022,
+      "kind": "film",
+      "id": "ehRBlsvwlTM",
+      "watched": false,
+      "rating": null
+    },
+    {
+      "title": "Breaking Bad",
+      "year": 2008,
+      "kind": "serie",
+      "watched": false,
+      "rating": null,
+      "id": "eP_cV5jRi4g"
+    },
+    {
+      "title": "El camino",
+      "year": 2018,
+      "kind": "film",
+      "watched": false,
+      "rating": null,
+      "id": "C7Dpz9XJrjI"
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}

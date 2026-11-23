@@ -2,12 +2,15 @@ import { useState } from "react";
 import type { Show } from "../data/watchlist";
 import { Button } from "./Button";
 import { cn } from "../utils/cn";
+import { MorphIcon } from "morphicons/react";
+import { Plus } from "lucide";
 
 const MIN_YEAR = 1900;
 const MAX_YEAR = 2026;
 
 type AddShowFormProps = {
-    onSubmit: (show: Omit<Show, "id">) => void;
+    existingShows: Show[];
+    onSubmit: (show: Omit<Show, "id">) => Promise<void>;
 };
 
 const defaultState = {
@@ -15,6 +18,8 @@ const defaultState = {
         title: "",
         year: 0,
         kind: "film" as Show["kind"],
+        watched: false,
+        rating: null,
     },
     errors: {
         title: [] as string[],
@@ -22,10 +27,10 @@ const defaultState = {
     }
 };
 
-const AddShowForm = ({ onSubmit }: AddShowFormProps) => {
+const AddShowForm = ({ existingShows, onSubmit }: AddShowFormProps) => {
     const [formState, setFormState] = useState(defaultState);
 
-    function addShow(e: React.SubmitEvent<HTMLFormElement>) {
+    async function addShow(e: React.SubmitEvent<HTMLFormElement>) {
         e.preventDefault();
 
         let errors = { ...defaultState.errors };
@@ -39,6 +44,19 @@ const AddShowForm = ({ onSubmit }: AddShowFormProps) => {
             errors = {
                 ...errors,
                 title: ["Titolo obbligatorio"]
+            };
+        }
+
+        const normalizedTitle = formState.values.title.trim().toLowerCase();
+
+        const isDuplicate = existingShows.some(show =>
+            show.title.trim().toLowerCase() === normalizedTitle
+        );
+
+        if (isDuplicate) {
+            errors = {
+                ...errors,
+                title: ["Questo titolo è già presente nella watchlist"]
             };
         }
 
@@ -62,8 +80,8 @@ const AddShowForm = ({ onSubmit }: AddShowFormProps) => {
 
         const newShow = { ...formState.values };
 
+        await onSubmit(newShow);
         setFormState(defaultState);
-        onSubmit(newShow);
     }
 
     return (
@@ -116,7 +134,7 @@ const AddShowForm = ({ onSubmit }: AddShowFormProps) => {
                 </p>
             ))}
 
-            
+
             <div className="flex gap-4">
                 {(["film", "serie"] as const).map(tipo => (
                     <Button
@@ -138,8 +156,12 @@ const AddShowForm = ({ onSubmit }: AddShowFormProps) => {
                 ))}
             </div>
 
-            <Button type="submit" variant="primary">
-                Aggiungi
+            <Button type="submit"
+                className="bg-blue-500 text-white">
+                <span className="flex items-center gap-2">
+                    <MorphIcon icon={Plus} size={18} />
+                    Aggiungi
+                </span>
             </Button>
 
         </form>
